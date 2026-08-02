@@ -1,0 +1,9 @@
+# original game distribution — not part of the published remake
+Mine-Bombers_DOS_EN.zip
+
+# local debug tooling (js-dos bundle contains the full original game)
+.debug/
+
+# OS noise
+.DS_Store
+Thumbs.db

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Open Bombers — a Mine Bombers remake</title>
+<link rel="stylesheet" href="css/style.css">
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+</head>
+<body>
+<div id="app">
+  <canvas id="game" width="640" height="480"></canvas>
+
+  <!-- ============ MAIN MENU ============ -->
+  <div id="menu" class="screen">
+    <div class="title-box">
+      <h1>OPEN&nbsp;BOMBERS</h1>
+      <p class="subtitle">a remake of Skitso Productions' <b>Mine Bombers 3.11</b> · now with online multiplayer</p>
+    </div>
+    <div class="menu-buttons">
+      <button id="btn-host" class="big">HOST ONLINE GAME</button>
+      <button id="btn-join" class="big">JOIN ONLINE GAME</button>
+      <button id="btn-practice" class="big">PRACTICE (OFFLINE)</button>
+    </div>
+    <div class="options-panel">
+      <h2>OPTIONS</h2>
+      <div class="opt-grid">
+        <label>Name <input id="opt-name" maxlength="10" value=""></label>
+        <label>Colour
+          <select id="opt-color">
+            <option value="0">Red</option><option value="1">Blue</option>
+            <option value="2">Green</option><option value="3">Yellow</option>
+          </select>
+        </label>
+        <label>Rounds
+          <select id="opt-rounds"><option>1</option><option>3</option><option selected>5</option><option>7</option><option>10</option></select>
+        </label>
+        <label>Time / round
+          <select id="opt-time"><option value="90">1:30</option><option value="150" selected>2:30</option><option value="240">4:00</option><option value="360">6:00</option></select>
+        </label>
+        <label>Treasures
+          <select id="opt-treasures"><option value="20">Few</option><option value="45" selected>Normal</option><option value="80">Many</option><option value="140">Insane</option></select>
+        </label>
+        <label>Starting cash
+          <select id="opt-cash"><option value="350">350</option><option value="650" selected>650</option><option value="1500">1500</option><option value="5000">5000</option></select>
+        </label>
+        <label>Damage
+          <select id="opt-damage"><option value="0.5">Mild</option><option value="1" selected>Normal</option><option value="1.6">Deadly</option></select>
+        </label>
+        <label>Darkness
+          <select id="opt-darkness"><option value="0" selected>Off</option><option value="1">On</option></select>
+        </label>
+        <label>Monsters
+          <select id="opt-monsters"><option value="0">Off</option><option value="1" selected>On</option></select>
+        </label>
+        <label>Level
+          <select id="opt-level"><option value="random" selected>Random each round</option></select>
+        </label>
+      </div>
+      <p class="keys-help">KEYS — move: <b>arrows / WASD</b> · drop bomb: <b>Space</b> · change weapon: <b>Shift / Tab</b> · detonate remote: <b>X / Ctrl</b></p>
+    </div>
+  </div>
+
+  <!-- ============ JOIN DIALOG ============ -->
+  <div id="join" class="screen hidden">
+    <div class="dialog">
+      <h2>JOIN GAME</h2>
+      <p>Enter the room code your friend gave you:</p>
+      <input id="join-code" maxlength="4" placeholder="CODE" autocomplete="off">
+      <div class="row"><button id="btn-join-go" class="big">CONNECT</button><button id="btn-join-back">BACK</button></div>
+      <p id="join-status" class="status"></p>
+    </div>
+  </div>
+
+  <!-- ============ LOBBY ============ -->
+  <div id="lobby" class="screen hidden">
+    <div class="dialog">
+      <h2>LOBBY</h2>
+      <p class="room-code-label">ROOM CODE</p>
+      <div id="room-code" class="room-code">----</div>
+      <p class="hint">Friends pick "Join online game" and enter this code (2–4 players).</p>
+      <ul id="lobby-players"></ul>
+      <div class="row">
+        <button id="btn-start" class="big hidden">START GAME</button>
+        <button id="btn-lobby-back">LEAVE</button>
+      </div>
+      <p id="lobby-status" class="status"></p>
+    </div>
+  </div>
+
+  <!-- ============ SHOP ============ -->
+  <div id="shop" class="screen hidden">
+    <div class="shop-box">
+      <div class="shop-head">
+        <h2>WEAPON SHOP</h2>
+        <div id="shop-info"><span id="shop-round"></span> · CASH <span id="shop-cash">0</span> $</div>
+      </div>
+      <div id="shop-grid"></div>
+      <div class="shop-foot">
+        <div id="shop-inv"></div>
+        <button id="btn-ready" class="big">READY — ENTER MINE</button>
+      </div>
+      <p id="shop-status" class="status"></p>
+    </div>
+  </div>
+
+  <!-- ============ ROUND / GAME END ============ -->
+  <div id="results" class="screen hidden">
+    <div class="dialog">
+      <h2 id="results-title">ROUND OVER</h2>
+      <div id="results-body"></div>
+      <button id="btn-results-ok" class="big">CONTINUE</button>
+    </div>
+  </div>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

@@ -1,4 +1,5 @@
-MIT License
+MIT License — applies to the Open Bombers source code
+(everything except the contents of assets/, see note below)
 
 Copyright (c) 2026 Rafael
 
@@ -19,3 +20,14 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+--------------------------------------------------------------------------
+
+Note on game assets
+
+The files under assets/ (levels, graphics, sound effects, music) are converted
+from the data files of Mine Bombers 3.11 by Skitso Productions, which the
+authors released as freeware. They remain the property of their original
+creators and are included here solely so this fan remake of a freeware game is
+playable. They are NOT covered by the MIT license above. If you are a rights
+holder and want them removed, please open an issue.
