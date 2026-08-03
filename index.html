@@ -61,11 +61,13 @@
     </div>
   </div>
 
-  <!-- ============ JOIN DIALOG ============ -->
+  <!-- ============ JOIN DIALOG / GAME BROWSER ============ -->
   <div id="join" class="screen hidden">
     <div class="dialog">
       <h2>JOIN GAME</h2>
-      <p>Enter the room code your friend gave you:</p>
+      <p class="pg-head">WAITING GAMES</p>
+      <div id="public-games"><p class="hint pg-empty">Looking for public games…</p></div>
+      <p>…or enter a room code:</p>
       <input id="join-code" maxlength="4" placeholder="CODE" autocomplete="off">
       <div class="row"><button id="btn-join-go" class="big">CONNECT</button><button id="btn-join-back">BACK</button></div>
       <p id="join-status" class="status"></p>

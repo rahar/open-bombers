@@ -34,6 +34,141 @@ export class Host {
   destroy() { try { this.peer.destroy(); } catch (e) {} }
 }
 
+// ---------------------------------------------------------------------------
+// Serverless game directory: the first lobby visitor claims a well-known peer
+// id and becomes the registry; everyone else connects to it as a client.
+// Hosts (re-)announce their room every few seconds, entries expire after 30s,
+// and if the registry peer disappears the remaining clients race to take over.
+const DIR_ID = PREFIX + 'directory-v1';
+const GAME_TTL = 30000;
+
+export class Directory {
+  constructor(cb) {
+    this.cb = cb || {};
+    this.destroyed = false;
+    this.role = null;
+    this.games = new Map();     // server role: code -> {game, ts}
+    this.conns = new Set();     // server role
+    this.conn = null;           // client role
+    this._last = null;          // our own announcement, resent on reconnect
+    this._connect();
+  }
+
+  _connect() {
+    if (this.destroyed) return;
+    const peer = new Peer(DIR_ID, { debug: 0 });
+    this.peer = peer;
+    let settled = false;
+    peer.on('open', () => { if (!settled) { settled = true; this._becomeServer(); } });
+    peer.on('error', err => {
+      if (err.type === 'unavailable-id' && !settled) {
+        settled = true;
+        try { peer.destroy(); } catch (e) {}
+        this._becomeClient();
+      } else if (!settled) {
+        settled = true;
+        this._retry();
+      }
+    });
+  }
+
+  _becomeServer() {
+    this.role = 'server';
+    this.cb.onRole && this.cb.onRole('server');
+    this.peer.on('connection', conn => {
+      conn.on('open', () => {
+        this.conns.add(conn);
+        if (conn.open) conn.send({ t: 'games', list: this._list() });
+      });
+      conn.on('data', m => this._serverMsg(conn, m));
+      const bye = () => this.conns.delete(conn);
+      conn.on('close', bye);
+      conn.on('error', bye);
+    });
+    this._pruneTimer = setInterval(() => this._prune(), 10000);
+    if (this._last) this._serverMsg(null, { t: 'announce', game: this._last });
+    this._emit();
+  }
+
+  _serverMsg(conn, m) {
+    if (!m || typeof m !== 'object') return;
+    if (m.t === 'announce' && m.game && typeof m.game.code === 'string') {
+      this.games.set(m.game.code, { ...m.game, ts: Date.now() });
+      this._broadcast();
+    } else if (m.t === 'withdraw' && typeof m.code === 'string') {
+      this.games.delete(m.code);
+      this._broadcast();
+    } else if (m.t === 'list' && conn && conn.open) {
+      conn.send({ t: 'games', list: this._list() });
+    }
+  }
+
+  _list() { return [...this.games.values()].map(({ ts, ...g }) => g); }
+  _prune() {
+    let changed = false;
+    const now = Date.now();
+    for (const [c, g] of this.games) if (now - g.ts > GAME_TTL) { this.games.delete(c); changed = true; }
+    if (changed) this._broadcast();
+  }
+  _broadcast() {
+    const msg = { t: 'games', list: this._list() };
+    for (const c of this.conns) if (c.open) c.send(msg);
+    this._emit();
+  }
+  _emit() { this.cb.onGames && this.cb.onGames(this._list()); }
+
+  _becomeClient() {
+    if (this.destroyed) return;
+    this.role = 'client';
+    this.cb.onRole && this.cb.onRole('client');
+    const peer = new Peer({ debug: 0 });
+    this.peer = peer;
+    peer.on('open', () => {
+      const conn = peer.connect(DIR_ID, { reliable: true });
+      this.conn = conn;
+      conn.on('open', () => {
+        conn.send({ t: 'list' });
+        if (this._last) conn.send({ t: 'announce', game: this._last });
+      });
+      conn.on('data', m => {
+        if (m && m.t === 'games') this.cb.onGames && this.cb.onGames(m.list);
+      });
+      conn.on('close', () => this._retry());
+      conn.on('error', () => this._retry());
+    });
+    peer.on('error', err => {
+      if (err.type === 'peer-unavailable') this._retry();
+    });
+  }
+
+  _retry() {
+    if (this.destroyed || this._retrying) return;
+    this._retrying = true;
+    try { this.peer.destroy(); } catch (e) {}
+    this.conn = null;
+    setTimeout(() => {
+      this._retrying = false;
+      this._connect();                       // race to claim the directory id
+    }, 400 + Math.random() * 1600);
+  }
+
+  announce(game) {
+    this._last = game;
+    if (this.role === 'server') this._serverMsg(null, { t: 'announce', game });
+    else if (this.conn && this.conn.open) this.conn.send({ t: 'announce', game });
+  }
+  withdraw(code) {
+    this._last = null;
+    if (this.role === 'server') { this.games.delete(code); this._broadcast(); }
+    else if (this.conn && this.conn.open) this.conn.send({ t: 'withdraw', code });
+  }
+  destroy() {
+    this.destroyed = true;
+    clearInterval(this._pruneTimer);
+    try { this.peer.destroy(); } catch (e) {}
+  }
+}
+
 export class Client {
   constructor(code, meta, cb) {
     this.cb = cb;               // {onOpen, onData, onClose, onError}

@@ -4,7 +4,7 @@ import { loadLevel, generateMap, carveSpawns, pickRandomLevel, sprinkleTreasures
 import { Game, moveAxis } from './game.js';
 import { loadAssets, sprites, Renderer } from './render.js';
 import { initAudio, playSound, playBoom, playMusic, stopMusic } from './audio.js';
-import { Host, Client, makeCode } from './net.js';
+import { Host, Client, Directory, makeCode } from './net.js';
 
 const $ = id => document.getElementById(id);
 const show = id => $(id).classList.remove('hidden');
@@ -21,6 +21,9 @@ const S = {
   mode: null,          // 'host' | 'client' | 'practice'
   net: null,           // Host or Client instance
   game: null,          // Game (host/practice only)
+  dir: null,           // Directory (public game list)
+  roomCode: null,
+  started: false,      // host: first round has begun, no more joins
   myId: 0,
   options: null,
   lobby: [],           // [{pid,name,color}]
@@ -144,14 +147,19 @@ $('btn-host').onclick = async () => {
   renderLobby();
 
   let nextPid = 1;
+  S.roomCode = code;
+  S.started = false;
   S.net = new Host(code, {
-    onReady: () => { $('room-code').textContent = code; },
+    onReady: () => {
+      $('room-code').textContent = code;
+      startAnnouncing();
+    },
     onError: err => {
       if (err.type === 'unavailable-id') location.reload();
       else $('lobby-status').textContent = 'Network error: ' + (err.type || err.message);
     },
     onJoin: conn => {
-      if (S.playing || S.game.round > 0) { S.net.sendTo(conn, { t: 'reject', reason: 'Game already running.' }); return; }
+      if (S.started || S.playing || S.game.round > 0) { S.net.sendTo(conn, { t: 'reject', reason: 'Game already running.' }); return; }
       if (S.lobby.length >= 4) { S.net.sendTo(conn, { t: 'reject', reason: 'Room is full (4 players).' }); return; }
       const meta = conn.metadata || {};
       const pid = nextPid++;
@@ -175,7 +183,67 @@ $('btn-host').onclick = async () => {
   });
 };
 
-function broadcastLobby() { S.net && S.net.broadcast({ t: 'lobby', players: S.lobby }); }
+function broadcastLobby() {
+  S.net && S.net.broadcast({ t: 'lobby', players: S.lobby });
+  if (S.mode === 'host') announceGame();
+}
+
+// ---------------- public game directory ----------------
+function announceGame() {
+  if (!S.dir || !S.roomCode || S.started) return;
+  S.dir.announce({
+    code: S.roomCode,
+    host: myName(),
+    players: S.lobby.length,
+    max: 4,
+  });
+}
+
+function startAnnouncing() {
+  if (S.dir) return;
+  S.dir = new Directory({});
+  announceGame();
+  S.announceTimer = setInterval(announceGame, 8000);
+}
+
+function stopAnnouncing() {
+  clearInterval(S.announceTimer);
+  if (S.dir) {
+    if (S.roomCode) S.dir.withdraw(S.roomCode);
+    const dir = S.dir;
+    S.dir = null;
+    setTimeout(() => dir.destroy(), 500);   // let the withdraw flush first
+  }
+}
+
+function renderPublicGames(list) {
+  const box = $('public-games');
+  if (!box) return;
+  box.innerHTML = '';
+  const open = (list || []).filter(g => g.players < g.max);
+  if (!open.length) {
+    box.innerHTML = '<p class="hint pg-empty">No public games right now — host one!</p>';
+    return;
+  }
+  for (const g of open) {
+    const row = document.createElement('div');
+    row.className = 'pg-row';
+    const name = document.createElement('span');
+    name.className = 'pg-name';
+    name.textContent = `${g.host}'s game`;
+    const info = document.createElement('span');
+    info.className = 'pg-info';
+    info.textContent = `${g.players}/${g.max} players · ${g.code}`;
+    const btn = document.createElement('button');
+    btn.textContent = 'JOIN';
+    btn.onclick = () => {
+      $('join-code').value = g.code;
+      $('btn-join-go').click();
+    };
+    row.appendChild(name); row.appendChild(info); row.appendChild(btn);
+    box.appendChild(row);
+  }
+}
 
 function hostOnData(conn, msg) {
   const pid = conn._pid;
@@ -213,6 +281,8 @@ function hostEnterShop(firstTime) {
   // materialize lobby into game players on first start
   if (firstTime) {
     for (const lp of S.lobby) if (!S.game.player(lp.pid)) S.game.addPlayer(lp.pid, lp.name, lp.color);
+    S.started = true;
+    stopAnnouncing();
   }
   S.game.phase = 'shop';
   S.ready = new Set();
@@ -299,8 +369,17 @@ $('btn-practice').onclick = async () => {
 };
 
 // ---------------- client ----------------
-$('btn-join').onclick = () => { screen('join'); $('join-code').value = ''; $('join-status').textContent = ''; $('join-code').focus(); };
-$('btn-join-back').onclick = () => screen('menu');
+$('btn-join').onclick = () => {
+  screen('join');
+  $('join-code').value = '';
+  $('join-status').textContent = '';
+  $('join-code').focus();
+  if (!S.dir) S.dir = new Directory({ onGames: renderPublicGames });
+};
+$('btn-join-back').onclick = () => {
+  if (S.dir) { S.dir.destroy(); S.dir = null; }
+  screen('menu');
+};
 $('btn-join-go').onclick = async () => {
   const code = $('join-code').value.trim().toUpperCase();
   if (code.length !== 4) { $('join-status').textContent = 'Code is 4 characters.'; return; }
@@ -328,6 +407,7 @@ function clientOnData(msg) {
     case 'hello':
       S.myId = msg.pid;
       S.options = msg.options;
+      if (S.dir) { S.dir.destroy(); S.dir = null; }   // done browsing
       screen('lobby');
       $('room-code').textContent = $('join-code').value.trim().toUpperCase();
       break;

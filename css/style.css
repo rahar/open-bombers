@@ -113,6 +113,32 @@ input, select {
 .dialog p { margin: 8px 0; color: #bbb; }
 .row { display: flex; gap: 12px; justify-content: center; margin-top: 14px; }
 
+.pg-head { font-size: 12px; color: #888; letter-spacing: 2px; margin-top: 4px; }
+#public-games {
+  min-height: 56px;
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid #333;
+  background: #0c0c14;
+  margin: 6px 0 12px 0;
+  padding: 4px;
+}
+.pg-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 10px;
+  border-bottom: 1px solid #22222e;
+  font-size: 14px;
+}
+.pg-row:last-child { border-bottom: none; }
+.pg-name { color: #ffcc33; }
+.pg-info { color: #8a8; font-size: 12px; }
+.pg-row button { padding: 4px 14px; font-size: 13px; border-color: #7fff5c; color: #7fff5c; }
+.pg-row button:hover { background: #1e3a1e; }
+.pg-empty { padding: 12px; }
+
 #join-code {
   font-size: 42px;
   width: 190px;

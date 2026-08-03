@@ -52,9 +52,17 @@ Then open `http://localhost:8473/`.
 
 ## Playing online
 
-1. One player clicks **HOST ONLINE GAME** and shares the 4-letter room code.
-2. Up to three friends click **JOIN ONLINE GAME** and enter the code (they need to open the same app — host it anywhere static, or use a tunnel; game traffic itself is peer-to-peer WebRTC).
+1. One player clicks **HOST ONLINE GAME**. The game is announced in the public
+   lobby automatically (until the host starts it).
+2. Up to three friends click **JOIN ONLINE GAME** — waiting games appear in the
+   **WAITING GAMES** list for one-click joining, or a 4-letter room code can be
+   entered manually.
 3. The host starts the game; everyone shops, readies up, and the round begins.
+
+The public lobby is serverless: the first player browsing it claims a
+well-known peer id on the PeerJS broker and acts as the game registry; hosts
+re-announce every few seconds, entries expire after 30 s, and when the
+registry player leaves, another browser takes over automatically.
 
 Signalling uses the free public [PeerJS](https://peerjs.com) broker; after the handshake all game data flows directly between browsers. The host's browser is the authoritative game server — if the host closes the tab, the game ends.
 
